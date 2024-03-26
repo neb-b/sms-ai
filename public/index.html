@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Request Form</title>
+  </head>
+  <body>
+    <form id="aiForm">
+      <textarea id="message" name="message" rows="4" cols="50"></textarea>
+      <button type="submit">Send</button>
+    </form>
+    <div id="response"></div>
+    <script>
+      document.getElementById('aiForm').addEventListener('submit', function (event) {
+        event.preventDefault()
+        const formData = new FormData(this)
+        fetch('/ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message: formData.get('message') }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            document.getElementById('response').innerText = `Response: ${data.completion}`
+          })
+          .catch((error) => console.error('Error:', error))
+      })
+    </script>
+  </body>
+</html>
