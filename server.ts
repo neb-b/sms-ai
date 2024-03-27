@@ -92,15 +92,16 @@ fastify.post('/sms', async function handler(request, reply) {
       }
     }
 
-    const systemMessageBody = await ai.complete(
-      previousMessagesFromUser.map((message) => {
+    const systemMessageBody = await ai.complete({
+      messages: previousMessagesFromUser.map((message) => {
         return {
           role: message.role,
           content: message.content,
         }
       }),
-      Body
-    )
+      message: Body,
+      user_id: user.id,
+    })
 
     const userMessage = {
       role: 'user',

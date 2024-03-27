@@ -34,20 +34,23 @@ export const getMessages = async (userId: number) => {
 }
 
 export const createEvent = async (event: { name: string; date: string; user_id: number }) => {
-  const { data, error } = await db.from('event').insert({
-    ...event,
-    type: 'one-time',
-  })
+  const { data, error } = await db
+    .from('event')
+    .insert({
+      ...event,
+      type: 'one-time',
+    })
+    .select()
 
   if (error) {
     throw error
   }
 
-  return data
+  return data?.[0]
 }
 
-export const createReminder = async (reminder: { event_id: number; date: string }) => {
-  const { data, error } = await db.from('reminder').insert(reminder)
+export const createReminder = async (reminder: { event_id: number; user_id: number; date: string }) => {
+  const { data, error } = await db.from('reminder').insert(reminder).select()
 
   if (error) {
     throw error
