@@ -1,7 +1,17 @@
-import twilio from 'twilio'
+import Twilio from 'twilio'
 const accountSid = process.env.TWILIO_ACCOUNT_SID
 const authToken = process.env.TWILIO_AUTH_TOKEN
 
-console.log('accountSid', accountSid)
-console.log('authToekn', authToken)
-export const client = twilio(accountSid, authToken)
+const twilio = Twilio(accountSid, authToken)
+
+export const sendSMS = async ({ to, body }: { to: string; body: string }) => {
+  return new Promise((resolve) => {
+    resolve(true)
+  })
+
+  return twilio.messages.create({
+    body,
+    from: process.env.TWILIO_PHONE_NUMBER,
+    to,
+  })
+}

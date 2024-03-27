@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fastify/formbody": "^7.4.0",
+    "@supabase/supabase-js": "^2.40.0",
     "@types/node": "^20.11.30",
     "fastify": "^4.26.2",
     "openai": "^4.29.2",
