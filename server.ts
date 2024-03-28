@@ -4,6 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import formbody from '@fastify/formbody'
 import { getUser, getMessages, createMessages } from './src/db'
+import { sendSMS } from './src/twilio'
 
 type TwilioMessage = {
   ToCountry: string
@@ -116,6 +117,10 @@ fastify.post('/sms', async function handler(request, reply) {
     }
 
     await createMessages([userMessage, systemMessage])
+    await sendSMS({
+      body: systemMessageBody,
+      to: From,
+    })
     return {
       content: systemMessageBody,
     }

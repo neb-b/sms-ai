@@ -9,6 +9,7 @@ export const sendSMS = async ({ to, body }: { to: string; body: string }) => {
     resolve(true)
   })
 
+  console.log('sending message: ', { to, body })
   return twilio.messages.create({
     body,
     from: process.env.TWILIO_PHONE_NUMBER,
