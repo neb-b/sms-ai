@@ -49,6 +49,22 @@ export const createEvent = async (event: { name: string; date: string; user_id: 
   return data?.[0]
 }
 
+export const searchForEvents = async (search: { start: string; end: string; user_id: number }) => {
+  console.log('SEARCH', search)
+  const { data, error } = await db
+    .from('event')
+    .select('*')
+    .gte('date', search.start)
+    .lte('date', search.end)
+    .eq('user_id', search.user_id)
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export const createReminder = async (reminder: { event_id: number; user_id: number; date: string }) => {
   const { data, error } = await db.from('reminder').insert(reminder).select()
 

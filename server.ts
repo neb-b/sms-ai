@@ -65,10 +65,10 @@ fastify.post('/sms', async function handler(request, reply) {
       }
 
       await createMessages([optInMessage])
-      // await sendSMS({
-      //   content: optInMessage.body,
-      //   to: From,
-      // })
+      await sendSMS({
+        body: optInMessage.content,
+        to: From,
+      })
 
       return { content: optInMessage.content }
     }

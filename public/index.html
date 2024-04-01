@@ -8,16 +8,21 @@
   <body>
     <form id="aiForm">
       <textarea id="message" name="message" rows="4" cols="50"></textarea>
-      <button type="submit">Send</button>
+      <button type="submit" id="submit">Send</button>
     </form>
     <div id="response"></div>
     <script>
       const input = document.getElementById('message')
       const form = document.getElementById('aiForm')
+      const button = document.getElementById('submit')
 
       const submit = (event) => {
         event.preventDefault()
         const formData = new FormData(form)
+
+        button.disabled = true
+        button.innerText = 'Sending...'
+
         fetch('/sms', {
           method: 'POST',
           headers: {
@@ -31,6 +36,10 @@
             input.value = ''
           })
           .catch((error) => console.error('Error:', error))
+          .finally(() => {
+            button.disabled = false
+            button.innerText = 'Send'
+          })
       }
 
       form.addEventListener('submit', submit)

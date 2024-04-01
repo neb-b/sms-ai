@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { createEvent, createReminder } from './db'
+import { createEvent, createReminder, searchForEvents } from './db'
 
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -15,46 +15,63 @@ export class ai {
     messages: { role: 'system' | 'user'; content: string }[]
     message: string
   }): Promise<string> {
-    const runner = openai.beta.chat.completions
-      .runTools({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `
+    const runner = openai.beta.chat.completions.runTools({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: `
               You are an SMS based AI assistant.
               All messages should be short and to the point.
               You can create events for the user.
+              Only create events if the user specifically asks to remember or create an event/something.
               Another service will run a job that ensures the user is reminded of these events properly.
               this users "user_id" is "${user_id}"
+              it is currently ${new Date().toISOString()}
             `,
-          },
-          ...messages,
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
-        tools: [
-          {
-            type: 'function',
-            // @ts-expect-error
-            function: {
-              function: create_event,
-              parse: JSON.parse,
-              parameters: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string' },
-                  timeFromNowInSeconds: { type: 'number' },
-                  user_id: { type: 'number' },
-                },
+        },
+        ...messages,
+        {
+          role: 'user',
+          content: message,
+        },
+      ],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            function: create_event,
+            description: 'Creates an event at a specified time in the future for the user',
+            parse: JSON.parse,
+            parameters: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                timeFromNowInSeconds: { type: 'number' },
+                user_id: { type: 'number' },
               },
             },
           },
-        ],
-      })
-      .on('message', (message) => console.log(message))
+        },
+        {
+          type: 'function',
+          function: {
+            function: search_for_events,
+            description: 'Lets the user know if there is a scheduled event at a specic time in the future',
+            parse: JSON.parse,
+            parameters: {
+              type: 'object',
+              properties: {
+                searchTimeStartDaysInFuture: { type: 'number' },
+                searchTimeStartHoursInFuture: { type: 'number' },
+                searchTimeStartMinutesInFuture: { type: 'number' },
+                user_id: { type: 'number' },
+              },
+            },
+          },
+        },
+      ],
+    })
 
     const finalContent = await runner.finalContent()
     return finalContent
@@ -70,7 +87,6 @@ async function create_event({
   timeFromNowInSeconds: number
   user_id: number
 }) {
-  console.log('CREATE_EVENT CALL', name, timeFromNowInSeconds, user_id)
   const eventTime = new Date(Date.now() + timeFromNowInSeconds * 1000)
   const eventTimeString = eventTime.toISOString()
 
@@ -89,7 +105,48 @@ async function create_event({
       date: reminderDate,
     })
   } catch (e) {
-    console.log('ERROR: ', e)
+    console.log('error creating event: ', e)
+    return e.message
+  }
+}
+
+async function search_for_events({
+  searchTimeStartDaysInFuture = 0,
+  searchTimeStartHoursInFuture = 0,
+  searchTimeStartMinutesInFuture = 0,
+  user_id,
+  ...rest
+}: {
+  searchTimeStartDaysInFuture: number
+  searchTimeStartHoursInFuture: number
+  searchTimeStartMinutesInFuture: number
+  user_id: number
+}) {
+  let eventStartSearchStartTime = new Date(Date.now())
+  eventStartSearchStartTime.setDate(eventStartSearchStartTime.getDate() + searchTimeStartDaysInFuture)
+  // subtrack 24 hours to account for the fact that we are searching for events that start at the beginning of the day
+  eventStartSearchStartTime.setHours(eventStartSearchStartTime.getHours() - 24 + searchTimeStartHoursInFuture)
+  eventStartSearchStartTime.setMinutes(
+    eventStartSearchStartTime.getMinutes() + searchTimeStartMinutesInFuture
+  )
+
+  let eventEndTime = new Date(eventStartSearchStartTime.getTime())
+  eventEndTime.setHours(eventEndTime.getHours() + 24)
+
+  try {
+    const events = await searchForEvents({
+      start: new Date(eventStartSearchStartTime).toISOString(),
+      end: new Date(eventEndTime).toISOString(),
+      user_id,
+    })
+
+    if (events.length === 0) {
+      return 'No events found'
+    }
+
+    return events.map((event) => event.name).join(', ')
+  } catch (e) {
+    console.log('error searching for events: ', e)
     return e.message
   }
 }
