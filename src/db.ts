@@ -24,7 +24,12 @@ export const createMessages = async (messages: { role: string; content: string; 
 }
 
 export const getMessages = async (userId: number) => {
-  const { data, error } = await db.from('message').select('*').eq('user_id', userId).limit(20)
+  const { data, error } = await db
+    .from('message')
+    .select('*')
+    .eq('user_id', userId)
+    .limit(20)
+    .order('created_at', { ascending: false })
 
   if (error) {
     throw error

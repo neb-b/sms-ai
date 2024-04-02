@@ -101,22 +101,9 @@ fastify.post('/sms', async function handler(request, reply) {
         }
       }),
       message: Body,
-      user_id: user.id,
+      userId: user.id,
     })
 
-    const userMessage = {
-      role: 'user',
-      content: Body,
-      user_id: user.id,
-    }
-
-    const systemMessage = {
-      role: 'system',
-      content: systemMessageBody,
-      user_id: user.id,
-    }
-
-    await createMessages([userMessage, systemMessage])
     await sendSMS({
       body: systemMessageBody,
       to: From,
