@@ -130,7 +130,8 @@ fastify.post('/sms', async function handler(request, reply) {
 
 // Run the server!
 try {
-  await fastify.listen({ port: 1337 })
+  const port = Number(process.env.PORT) || 4000
+  await fastify.listen({ port })
 } catch (err) {
   fastify.log.error(err)
   process.exit(1)
