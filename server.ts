@@ -128,10 +128,12 @@ fastify.post('/sms', async function handler(request, reply) {
   }
 })
 
-// Run the server!
 try {
-  const port = Number(process.env.PORT) || 4000
-  await fastify.listen({ port })
+  const port = Number(process.env.PORT) || 1337
+  await fastify.listen({
+    port,
+    ...(process.env.NODE_ENV === 'production' ? { host: '0.0.0.0' } : {}),
+  })
 } catch (err) {
   fastify.log.error(err)
   process.exit(1)
