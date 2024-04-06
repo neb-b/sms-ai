@@ -16,10 +16,16 @@ export class ai {
     message: string
   }): Promise<string> {
     let responseMessages = []
+    const formattedMessages = messages.map((message) => {
+      return {
+        ...message,
+        content: message.content ?? '',
+      }
+    })
 
     const runner = openai.beta.chat.completions
       .runTools({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4-0125-preview',
         messages: [
           {
             role: 'system',
@@ -35,7 +41,7 @@ export class ai {
               If a user asks about "next week", assume they are asking about the upcoming Monday through Sunday.
             `,
           },
-          ...messages,
+          ...formattedMessages,
           {
             role: 'user',
             content: message,
@@ -128,7 +134,6 @@ export class ai {
 
     createMessages(newMessages)
 
-    console.log('newMessages: ', newMessages)
     return finalContent
   }
 }

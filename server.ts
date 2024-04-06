@@ -49,6 +49,11 @@ fastify.post('/sms', async function handler(request, reply) {
       throw Error('Invalid number')
     }
 
+    console.log('incoming: ', {
+      From,
+      Body,
+    })
+
     const numberLessCountryCode = From.slice(2)
     const user = await getUser(numberLessCountryCode)
     if (!user) {
@@ -83,11 +88,15 @@ fastify.post('/sms', async function handler(request, reply) {
 
       const welcomeMessage = {
         role: 'system',
-        content: `Welcome to the SMS AI assistant. You are now opted-in. How can I help you today? If you don't know where to start say "Help"`,
+        content: `Welcome to the SMS AI assistant. You are now opted-in. I will remember any events or dates you send and remind you when they get close.`,
         user_id: user.id,
       }
 
       await createMessages([welcomeMessage])
+      await sendSMS({
+        body: welcomeMessage.content,
+        to: From,
+      })
       return {
         content: welcomeMessage.content,
       }
