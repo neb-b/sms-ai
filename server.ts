@@ -130,6 +130,7 @@ fastify.post('/sms', async function handler(request, reply) {
 
 try {
   const port = Number(process.env.PORT) || 1337
+  console.log('\n\n process.env.NODE_ENV', process.env.NODE_ENV)
   await fastify.listen({
     port,
     ...(process.env.NODE_ENV === 'production' ? { host: '0.0.0.0' } : {}),
