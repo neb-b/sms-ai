@@ -133,7 +133,6 @@ export class ai {
     })
 
     createMessages(newMessages)
-
     return finalContent
   }
 }
@@ -163,6 +162,7 @@ const createUserEvent = (userId: number) =>
         user_id: userId,
         date: reminderDate,
       })
+      return `Event created: ${name} on ${eventTimeString} with a reminder on ${reminderDate}`
     } catch (e) {
       console.log('error creating event: ', e)
       return e.message

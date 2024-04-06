@@ -4,29 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import formbody from '@fastify/formbody'
 import { getUser, getMessages, createMessages } from './src/db'
-import { sendSMS } from './src/twilio'
-
-type TwilioMessage = {
-  ToCountry: string
-  ToState: string
-  SmsMessageSid: string
-  NumMedia: string
-  ToCity: string
-  FromZip: string
-  SmsSid: string
-  FromState: string
-  SmsStatus: string
-  FromCity: string
-  Body: string
-  FromCountry: string
-  To: string
-  ToZip: string
-  NumSegments: string
-  MessageSid: string
-  AccountSid: string
-  From: string
-  ApiVersion: string
-}
+import { sendSMS, type TwilioMessage } from './src/twilio'
 
 const fastify = Fastify({
   logger: true,
@@ -34,7 +12,6 @@ const fastify = Fastify({
 
 fastify.register(formbody)
 
-// Serve HTML page at root
 fastify.get('/', async function handler(request, reply) {
   const html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'))
   reply.type('text/html').send(html)
@@ -130,7 +107,6 @@ fastify.post('/sms', async function handler(request, reply) {
 
 try {
   const port = Number(process.env.PORT) || 1337
-  console.log('\n\n process.env.NODE_ENV', process.env.NODE_ENV)
   await fastify.listen({
     port,
     ...(process.env.NODE_ENV === 'production' ? { host: '0.0.0.0' } : {}),
