@@ -5,9 +5,7 @@ const authToken = process.env.TWILIO_AUTH_TOKEN
 const twilio = Twilio(accountSid, authToken)
 
 export const sendSMS = async ({ to, body }: { to: string; body: string }) => {
-  console.log('new text: ', { to, body })
-
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV !== 'production') {
     return new Promise((resolve) => {
       resolve(true)
     })
