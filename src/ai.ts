@@ -35,10 +35,11 @@ export class ai {
               You can create events for the user.
               Do not create events unless the user specifically asks to create or add an event.
               Another service will run a job that ensures the user is reminded of these events properly.
-              The current date is ${new Date().toISOString()}
+              The current date is ${new Date().toISOString()}.
               If a user asks about "this weekend", assume they are asking about the next upcoming Friday through Sunday.
               Always provide the exact date (and time if applicable) of the event in the response.
               If a user asks about "next week", assume they are asking about the upcoming Monday through Sunday.
+              Do not ask about creating reminders for events - a reminder service will handle that - assume if they mention a date they want to search or create an event.
             `,
           },
           ...formattedMessages,
