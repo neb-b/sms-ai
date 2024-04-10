@@ -26,20 +26,25 @@ export class ai {
     const runner = openai.beta.chat.completions
       .runTools({
         model: 'gpt-4-turbo-2024-04-09',
+        temperature: 0.2,
         messages: [
           {
             role: 'system',
             content: `
               You are an SMS based AI assistant.
               All messages should be short and to the point.
-              You can create events for the user.
-              Do not create events unless the user specifically asks to create or add an event.
-              Another service will run a job that ensures the user is reminded of these events properly.
-              The current date is ${new Date().toISOString()}.
-              If a user asks about "this weekend", assume they are asking about the next upcoming Friday through Sunday.
-              Always provide the exact date (and time if applicable) of the event in the response.
-              If a user asks about "next week", assume they are asking about the upcoming Monday through Sunday.
+              You can create events, and query for created events if the user asks.
+              If there is some reference of a date ("next week", "the 24th", "tomorrow") assume the user is trying to create an event or see if there is an event already created for that date.
+              Another service will run a job that ensures the user is reminded of these events properly. You do not directly create reminders, only events.
               Do not ask about creating reminders for events - a reminder service will handle that - assume if they mention a date they want to search or create an event.
+              Call the provided functions to create events and search for events. The functions will handle the database operations.
+              The current ISO date is ${new Date().toISOString()}.
+              The current day of week is ${new Date().toLocaleString('en-us', { weekday: 'long' })}.
+              If a user asks about "this weekend", assume they are asking about the next upcoming Friday through Sunday.
+              If a user asks about "next weekend", if they are currently on a Friday, Saturday, or Sunday, assume they are asking about the following weekend ~7 days in the future. Otherwise, assume they are asking about the upcoming Friday through Sunday.
+              If a user asks about "next week", assume they are asking about the upcoming Monday through Sunday.
+              Always provide the exact date (and time if applicable) of the event in the response.
+              If there is no time specified, assume the event is at 12:00 PM.
             `,
           },
           ...formattedMessages,
@@ -59,7 +64,7 @@ export class ai {
                 type: 'object',
                 properties: {
                   name: { type: 'string' },
-                  timeFromNowInSeconds: { type: 'number' },
+                  dateISOString: { type: 'string' },
                 },
               },
             },
@@ -68,14 +73,23 @@ export class ai {
             type: 'function',
             function: {
               function: searchForUserEvents(userId),
-              description: 'Lets the user know if there is a scheduled event at a specic time in the future',
+              description: `
+                Searches for events around a specified date for the user.
+                Provide a searchISOString so that I can query my database for events around that time.
+                Do not worry about the time of the event, only the date.
+                The searchISOString is an ISO string of the date you want to search around.
+                searchISO string is REQUIRED!!! Your must provide a searchISOString.
+                I will add padding to the date so you need to return a date in the middle of this search window.
+                For example, if the user asks about "this weekend", provide a date in the middle of the upcoming Friday through Sunday.
+                If the user asks about "next week", provide a date in the middle of the upcoming Monday through Sunday.
+              `,
               parse: JSON.parse,
               parameters: {
                 type: 'object',
                 properties: {
-                  searchTimeStartDaysInFuture: { type: 'number' },
-                  searchTimeStartHoursInFuture: { type: 'number' },
-                  searchTimeStartMinutesInFuture: { type: 'number' },
+                  isUserAskingAboutAWeekend: { type: 'boolean' },
+                  isUserAskingAboutAFullWeek: { type: 'boolean' },
+                  searchISOString: { type: 'string' },
                 },
               },
             },
@@ -139,23 +153,17 @@ export class ai {
 }
 
 const createUserEvent = (userId: number) =>
-  async function createUserEvent({
-    name,
-    timeFromNowInSeconds,
-  }: {
-    name: string
-    timeFromNowInSeconds: number
-  }) {
-    const eventTime = new Date(Date.now() + timeFromNowInSeconds * 1000)
-    const eventTimeString = eventTime.toISOString()
+  async function createUserEvent({ name, dateISOString }: { name: string; dateISOString: string }) {
+    console.log('function_call: createUserEvent', { name, dateISOString })
 
     try {
       const event = await createEvent({
         name,
-        date: eventTimeString,
+        date: dateISOString,
         user_id: userId,
       })
 
+      const eventTime = new Date(dateISOString)
       const reminderDate = getReminderDate(eventTime)
 
       await createReminder({
@@ -163,7 +171,7 @@ const createUserEvent = (userId: number) =>
         user_id: userId,
         date: reminderDate,
       })
-      return `Event created: ${name} on ${eventTimeString} with a reminder on ${reminderDate}`
+      return `Event created: ${name} on ${dateISOString} with a reminder on ${reminderDate}`
     } catch (e) {
       console.log('error creating event: ', e)
       return e.message
@@ -172,28 +180,35 @@ const createUserEvent = (userId: number) =>
 
 const searchForUserEvents = (userId: number) =>
   async function searchForUserEvents({
-    searchTimeStartDaysInFuture = 0,
-    searchTimeStartHoursInFuture = 0,
-    searchTimeStartMinutesInFuture = 0,
+    isUserAskingAboutAWeekend,
+    isUserAskingAboutAFullWeek,
+    searchISOString,
   }: {
-    searchTimeStartDaysInFuture: number
-    searchTimeStartHoursInFuture: number
-    searchTimeStartMinutesInFuture: number
+    isUserAskingAboutAWeekend: boolean
+    isUserAskingAboutAFullWeek: boolean
+    searchISOString: string
   }) {
-    let eventStartSearchStartTime = new Date(Date.now())
-    eventStartSearchStartTime.setDate(eventStartSearchStartTime.getDate() + searchTimeStartDaysInFuture)
-    // subtrack 24 hours to account for the fact that we are searching for events that start at the beginning of the day
-    eventStartSearchStartTime.setHours(
-      eventStartSearchStartTime.getHours() - 24 + searchTimeStartHoursInFuture
-    )
-    eventStartSearchStartTime.setMinutes(
-      eventStartSearchStartTime.getMinutes() + searchTimeStartMinutesInFuture
-    )
-
-    let eventEndTime = new Date(eventStartSearchStartTime.getTime())
-    eventEndTime.setHours(eventEndTime.getHours() + 24)
+    console.log('function_call: searchForUserEvents', {
+      isUserAskingAboutAWeekend,
+      isUserAskingAboutAFullWeek,
+      searchISOString,
+    })
 
     try {
+      const eventStartSearchStartTime = new Date(searchISOString)
+      const eventEndTime = new Date(eventStartSearchStartTime.getTime())
+
+      if (isUserAskingAboutAWeekend) {
+        eventStartSearchStartTime.setDate(eventStartSearchStartTime.getDate() - 1.5)
+        eventEndTime.setDate(eventEndTime.getDate() + 1.5)
+      } else if (isUserAskingAboutAFullWeek) {
+        eventStartSearchStartTime.setDate(eventStartSearchStartTime.getDate() - 3.5)
+        eventEndTime.setDate(eventEndTime.getDate() + 3.5)
+      } else {
+        eventStartSearchStartTime.setDate(eventStartSearchStartTime.getDate() - 1)
+        eventEndTime.setDate(eventEndTime.getDate() + 1)
+      }
+
       const events = await searchForEvents({
         start: new Date(eventStartSearchStartTime).toISOString(),
         end: new Date(eventEndTime).toISOString(),
@@ -207,7 +222,7 @@ const searchForUserEvents = (userId: number) =>
       return events.map((event) => event.name).join(', ')
     } catch (e) {
       console.log('error searching for events: ', e)
-      return e.message
+      return 'There was an error searching for events. Please try again.'
     }
   }
 
