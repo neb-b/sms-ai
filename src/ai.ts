@@ -25,7 +25,7 @@ export class ai {
 
     const runner = openai.beta.chat.completions
       .runTools({
-        model: 'gpt-4-0125-preview',
+        model: 'gpt-4-turbo-2024-04-09',
         messages: [
           {
             role: 'system',

@@ -3,8 +3,12 @@ import { ai } from './src/ai'
 import path from 'path'
 import fs from 'fs'
 import formbody from '@fastify/formbody'
-import { getUser, getMessages, createMessages } from './src/db'
+import fastifyCron from 'fastify-cron'
+import { getUserByPhone, getMessages, createMessages } from './src/db'
 import { sendSMS, type TwilioMessage } from './src/twilio'
+import { Cron } from './src/cron'
+
+new Cron()
 
 const fastify = Fastify({
   logger: true,
@@ -32,7 +36,7 @@ fastify.post('/sms', async function handler(request, reply) {
     })
 
     const numberLessCountryCode = From.slice(2)
-    const user = await getUser(numberLessCountryCode)
+    const user = await getUserByPhone(numberLessCountryCode)
     if (!user) {
       throw Error('User not found')
     }
@@ -103,6 +107,23 @@ fastify.post('/sms', async function handler(request, reply) {
       error: e.message,
     }
   }
+})
+
+fastify.register(fastifyCron, {
+  jobs: [
+    {
+      // Only these two properties are required,
+      // the rest is from the node-cron API:
+      // https://github.com/kelektiv/node-cron#api
+      cronTime: '*/5 * * * *',
+
+      // Note: the callbacks (onTick & onComplete) take the server
+      // as an argument, as opposed to nothing in the node-cron API:
+      onTick: async (server) => {
+        console.log('TICKCICKCICK', server)
+      },
+    },
+  ],
 })
 
 try {
